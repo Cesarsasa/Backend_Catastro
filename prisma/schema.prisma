@@ -1,0 +1,321 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Departamento {
+  id         Int         @id @default(autoincrement())
+  codigo     String      @unique @db.VarChar(10)
+  nombre     String      @db.VarChar(100)
+  creado_en  DateTime    @default(now())
+  municipios Municipio[]
+
+  @@map("departamentos")
+}
+
+model Municipio {
+  id              Int           @id @default(autoincrement())
+  departamento_id Int
+  codigo          String        @unique @db.VarChar(10)
+  nombre          String        @db.VarChar(100)
+  creado_en       DateTime      @default(now())
+
+  departamento    Departamento  @relation(fields: [departamento_id], references: [id])
+  zonas           Zona[]
+  vias            Via[]
+  propietarios    Propietario[]
+  inmuebles       Inmueble[]
+
+  @@index([departamento_id])
+  @@map("municipios")
+}
+
+model TipoVia {
+  id     Int    @id @default(autoincrement())
+  nombre String @unique @db.VarChar(50)
+  vias   Via[]
+
+  @@map("tipos_via")
+}
+
+model Zona {
+  id           Int           @id @default(autoincrement())
+  municipio_id Int
+  numero       Int
+  nombre       String?       @db.VarChar(100)
+  creado_en    DateTime      @default(now())
+
+  municipio    Municipio     @relation(fields: [municipio_id], references: [id])
+  vias         Via[]
+  propietarios Propietario[]
+  inmuebles    Inmueble[]
+
+  @@unique([municipio_id, numero])
+  @@index([municipio_id])
+  @@map("zonas")
+}
+
+model Via {
+  id           Int           @id @default(autoincrement())
+  municipio_id Int
+  zona_id      Int?
+  tipo_via_id  Int
+  numero       String        @db.VarChar(10)
+  nombre       String?       @db.VarChar(100)
+  creado_en    DateTime      @default(now())
+
+  municipio    Municipio     @relation(fields: [municipio_id], references: [id])
+  zona         Zona?         @relation(fields: [zona_id], references: [id])
+  tipo_via     TipoVia       @relation(fields: [tipo_via_id], references: [id])
+  propietarios Propietario[]
+  inmuebles    Inmueble[]
+
+  @@unique([municipio_id, zona_id, tipo_via_id, numero]) 
+  @@index([municipio_id])
+  @@index([zona_id])
+  @@map("vias")
+}
+
+model Usuario {
+  id         Int      @id @default(autoincrement())
+  nombre     String   @db.VarChar(150)
+  email      String   @unique @db.VarChar(150)
+  password   String   @db.VarChar(255)
+  rol        Rol      @default(consulta)
+  activo     Boolean  @default(true)
+  creado_en  DateTime @default(now())
+
+  inmuebles_creados  Inmueble[]  @relation("CreadoPor")
+  documentos_subidos Documento[] @relation("SubidoPor")
+   documento_propietarios Documento_Propietario[] @relation("SubidoPor")
+  pagos_registrados  Pago[]      @relation("RegistradoPor")
+  auditorias         Auditoria[]
+
+  @@index([rol])
+  @@map("usuarios")
+}
+
+enum Rol {
+  admin
+  editor
+  consulta
+}
+
+model Propietario {
+  id             Int             @id @default(autoincrement())
+  tipo           TipoPropietario @default(persona)
+  nombre         String          @db.VarChar(200)
+  dpi            String?         @unique @db.VarChar(20)
+  nit            String?         @db.VarChar(20)
+  telefono       String?         @db.VarChar(20)
+  email          String?         @db.VarChar(150)
+   direccion      String?         @db.VarChar(300)
+  municipio_id   Int?
+  zona_id        Int?
+  via_id         Int?
+  numero_casa    String?         @db.VarChar(20)
+  colonia        String?         @db.VarChar(100)
+  referencia     String?
+  observaciones  String?
+  creado_en      DateTime        @default(now())
+  actualizado_en DateTime        @updatedAt
+  deleted_at     DateTime?       // borrado suave
+
+  municipio  Municipio?  @relation(fields: [municipio_id], references: [id])
+  zona       Zona?       @relation(fields: [zona_id], references: [id])
+  via        Via?        @relation(fields: [via_id], references: [id])
+  inmuebles  Inmueble[]
+  documentos Documento[]
+  documento_propietarios Documento_Propietario[]
+
+  @@index([dpi])
+  @@index([municipio_id])
+  @@index([deleted_at])
+  @@map("propietarios")
+}
+
+enum TipoPropietario {
+  persona
+  empresa
+}
+
+model Inmueble {
+  id                    Int            @id @default(autoincrement())
+  codigo_catastral      String         @unique @db.VarChar(20)
+  propietario_id        Int?
+  municipio_id          Int?
+  zona_id               Int?
+  via_id                Int?
+  numero_casa           String?        @db.VarChar(20)
+  colonia               String?        @db.VarChar(100)
+  referencia            String?
+  direccion_completa    String?
+
+  tipo                  TipoInmueble?
+  uso                   String?        @db.VarChar(100)
+  area_m2               Decimal?       @db.Decimal(12, 2)
+  area_registrada       Decimal?       @db.Decimal(12, 2)
+  area_real             Decimal?       @db.Decimal(12, 2)
+  valor_inscrito        Decimal?       @db.Decimal(14, 2)
+  no_inscripcion_iusi   String?        @db.VarChar(50)
+
+  finca                 String?        @db.VarChar(20)
+  folio                 String?        @db.VarChar(20)
+  libro                 String?        @db.VarChar(20)
+  departamento_registro String?        @db.VarChar(100)
+
+  // PostGIS — actualizar con pool.query() directo
+  coordenadas           String?        // GEOGRAPHY(POINT, 4326)
+  poligono              String?        // GEOGRAPHY(POLYGON, 4326)
+
+  estado                EstadoInmueble @default(activo)
+  creado_por            Int?
+  creado_en             DateTime       @default(now())
+  actualizado_en        DateTime       @updatedAt
+  deleted_at            DateTime?      // borrado suave
+
+  propietario Propietario? @relation(fields: [propietario_id], references: [id])
+  municipio   Municipio?   @relation(fields: [municipio_id], references: [id])
+  zona        Zona?        @relation(fields: [zona_id], references: [id])
+  via         Via?         @relation(fields: [via_id], references: [id])
+  creador     Usuario?     @relation("CreadoPor", fields: [creado_por], references: [id])
+  documentos  Documento[]
+  pagos       Pago[]
+
+  @@index([propietario_id])
+  @@index([municipio_id])
+  @@index([zona_id])
+  @@index([estado])
+  @@index([finca])
+  @@index([no_inscripcion_iusi])
+  @@index([deleted_at])
+  @@map("inmuebles")
+}
+
+enum TipoInmueble {
+  urbano
+  rural
+  comercial
+  industrial
+}
+
+enum EstadoInmueble {
+  activo
+  inactivo
+  en_disputa
+  en_proceso
+}
+
+model Documento {
+  id             Int            @id @default(autoincrement())
+  inmueble_id    Int?
+  propietario_id Int?
+  //tipo           TipoDocumento?
+  nombre         String         @db.VarChar(255)
+  ruta_s3        String         @db.VarChar(500)
+  url            String
+  tamano_bytes   Int?
+  mime_type      String?        @db.VarChar(100)
+  subido_por     Int?
+  creado_en      DateTime       @default(now())
+
+  inmueble    Inmueble?    @relation(fields: [inmueble_id], references: [id], onDelete: Cascade)
+  propietario Propietario? @relation(fields: [propietario_id], references: [id], onDelete: Cascade)
+  subidor     Usuario?     @relation("SubidoPor", fields: [subido_por], references: [id])
+
+  @@index([inmueble_id])
+  @@index([propietario_id])
+  @@map("documentos")
+}
+model Documento_Propietario {
+  id             Int            @id @default(autoincrement())
+  propietario_id Int?
+   // tipo           TipoDocumento?
+  nombre         String         @db.VarChar(255)
+  ruta_s3        String         @db.VarChar(500)
+  url            String
+  tamano_bytes   Int?
+  mime_type      String?        @db.VarChar(100)
+  subido_por     Int?
+  creado_en      DateTime       @default(now())
+
+  propietario Propietario? @relation(fields: [propietario_id], references: [id], onDelete: Cascade)
+  subidor     Usuario?     @relation("SubidoPor", fields: [subido_por], references: [id])
+
+
+  @@index([propietario_id])
+  @@map("documento_propietarios")
+}
+
+
+enum TipoDocumento {
+  escritura
+  plano
+  foto
+  dpi
+  certificacion
+  recibo
+  certificación_notarial   @map("certificación notarial")
+  boleta_aranceles         @map("boleta de pago de aranceles")
+  domicilio_fiscal         @map("constancia de domicilio fiscal")
+  mandato_legal          @map("mandato legal")
+  otro
+}
+
+model Pago {
+  id             Int        @id @default(autoincrement())
+  inmueble_id    Int
+  anio           Int
+  trimestre      Int?
+  monto          Decimal    @db.Decimal(12, 2)
+  estado         EstadoPago @default(pendiente)
+  fecha_pago     DateTime?
+  metodo_pago    String?    @db.VarChar(50)
+  num_recibo     String?    @unique @db.VarChar(100)
+  registrado_por Int?
+  creado_en      DateTime   @default(now())
+
+  inmueble    Inmueble @relation(fields: [inmueble_id], references: [id])
+  registrador Usuario? @relation("RegistradoPor", fields: [registrado_por], references: [id])
+
+  @@index([inmueble_id])
+  @@index([estado])
+  @@index([anio, trimestre])
+  @@index([inmueble_id, anio])
+  @@map("pagos")
+}
+
+enum EstadoPago {
+  pendiente
+  pagado
+  moroso
+  exonerado
+}
+
+model Auditoria {
+  id            Int      @id @default(autoincrement())
+  tabla         String   @db.VarChar(100)
+  registro_id   Int
+  accion        Accion
+  datos_antes   Json?
+  datos_despues Json?
+  usuario_id    Int?
+  ip            String?  @db.VarChar(45)
+  creado_en     DateTime @default(now())
+
+  usuario Usuario? @relation(fields: [usuario_id], references: [id])
+
+  @@index([tabla, registro_id])
+  @@index([usuario_id])
+  @@index([creado_en])
+  @@map("auditoria")
+}
+
+enum Accion {
+  INSERT
+  UPDATE
+  DELETE
+}
