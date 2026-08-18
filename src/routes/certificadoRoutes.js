@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getCertificados,subirCertificado, listarCertificados, eliminarCertificado, obtenerCertificadoPorId,obtenerCertificadosPorInmueble} from '../controllers/certificadoController.js'
+import { getCertificados,subirCertificado, listarCertificados, eliminarCertificado, obtenerCertificadoPorId,obtenerCertificadosPorInmueble} from '../controllers/certificadocontroller.js'
 import { verificarToken } from '../middleware/auth.js'
 
 const router = Router()
