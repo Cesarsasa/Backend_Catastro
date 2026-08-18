@@ -65,7 +65,7 @@ import pool from './src/config/database.js';
 import routes from './src/routes/index.js';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './src/config/swagger.js';
-import { webhookStripe } from './src/controllers/StripeController.js';
+import { webhookStripe } from './src/controllers/stripeController.js';
 
 dotenv.config();
 
