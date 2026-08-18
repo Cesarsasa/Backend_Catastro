@@ -1,6 +1,6 @@
 // src/routes/stripeRoutes.js
 import express, { Router } from 'express';
-import { crearPagoStripe, webhookStripe } from '../controllers/stripeController.js';
+import { crearPagoStripe, webhookStripe } from '../controllers/stripeController';
 
 const router = Router();
 
