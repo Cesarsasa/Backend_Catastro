@@ -5,14 +5,17 @@ import {
   getPropietarioByDpi,
   crearPropietario,
   actualizarPropietario,
-  eliminarPropietario
+  eliminarPropietario,
+  getPropietarioCount
 } from '../controllers/propietarioController.js'
 import { verificarToken, autorizar } from '../middleware/auth.js'
 
 const router = Router()
 
 router.get('/',           verificarToken, getPropietarios)
+router.get('/count',      verificarToken, getPropietarioCount)
 router.get('/:id',        verificarToken, getPropietarioById)
+router.get('/dpi-user/:dpi',   getPropietarioByDpi)
 router.get('/dpi/:dpi',   verificarToken, getPropietarioByDpi)
 router.post('/',          verificarToken, autorizar('admin', 'editor'), crearPropietario)
 router.put('/:id',        verificarToken, autorizar('admin', 'editor'), actualizarPropietario)

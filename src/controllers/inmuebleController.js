@@ -37,7 +37,10 @@ export const getInmuebles = async (req, res) => {
           propietario: { select: { nombre: true, dpi: true } },
           municipio:   { select: { nombre: true } },
           zona:        { select: { numero: true, nombre: true } },
-          via:         { include: { tipo_via: { select: { nombre: true } } } }
+          via:         { include: { tipo_via: { select: { nombre: true } } } },
+          _count: {
+        select: { certificados: true } // 👈 nuevo
+      }
         },
         orderBy: { creado_en: 'desc' },
         skip:    (parseInt(page) - 1) * parseInt(limit),
@@ -62,7 +65,8 @@ export const getInmuebles = async (req, res) => {
       return {
         ...i,
         coordenadas: g?.coordenadas || null,
-        poligono: g?.poligono || null
+        poligono: g?.poligono || null,
+        tiene_certificado: i._count.certificados > 0 
       };
     });
 
@@ -73,6 +77,150 @@ export const getInmuebles = async (req, res) => {
       pages: Math.ceil(total / parseInt(limit))
     });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+/*
+// ─── GET count de inmuebles ───────────────────────────────
+export const getInmueblesCount = async (req, res) => {
+  try {
+    const {
+      buscar, municipio_id, zona_id,
+      tipo, estado, propietario_id
+    } = req.query;
+
+    const where = {
+      deleted_at: null,
+      ...(tipo          && { tipo }),
+      ...(estado        && { estado }),
+      ...(municipio_id  && { municipio_id: parseInt(municipio_id) }),
+      ...(zona_id       && { zona_id: parseInt(zona_id) }),
+      ...(propietario_id && { propietario_id: parseInt(propietario_id) }),
+      ...(buscar && {
+        OR: [
+          { codigo_catastral:   { contains: buscar, mode: 'insensitive' } },
+          { finca:              { contains: buscar, mode: 'insensitive' } },
+          { direccion_completa: { contains: buscar, mode: 'insensitive' } },
+          { no_inscripcion_iusi:{ contains: buscar, mode: 'insensitive' } },
+        ]
+      })
+    };
+
+    const total = await prisma.inmueble.count({ where });
+
+    res.json({ total });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};*/
+
+
+export const getInmueblesCount = async (req, res) => {
+  try {
+    const total = await prisma.inmueble.count({
+      where: { deleted_at: null }
+    });
+    res.json({ total });
+    console.log('Total de inmuebles:', total);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+;
+
+export const getInmueblesByDpi = async (req, res) => {
+  try {
+    const { dpi } = req.params;
+    const page = req.query.page ?? 1;
+    const limit = req.query.limit ?? 50;
+
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 50;
+
+    // Buscar propietario por DPI e incluir solo inmuebles no borrados
+    const propietario = await prisma.propietario.findUnique({
+      where: { dpi },
+      include: {
+        inmuebles: {
+          where: { deleted_at: null },
+          include: {
+            municipio: { select: { nombre: true } },
+            zona: { select: { numero: true, nombre: true } },
+            via: { include: { tipo_via: { select: { nombre: true } } } },
+            _count: { select: { certificados: true } },
+            pagos: {
+              where: { estado: 'pagado' },
+              orderBy: { fecha_pago: 'desc' },
+              take: 1
+            }
+          },
+          orderBy: { creado_en: 'desc' },
+          skip: (pageNum - 1) * limitNum,
+          take: limitNum
+        }
+      }
+    });
+
+    if (!propietario) {
+      return res.status(404).json({ error: 'Propietario no encontrado' });
+    }
+
+    const inmuebles = propietario.inmuebles ?? [];
+    if (inmuebles.length === 0) {
+      return res.json({
+        propietario: {
+          nombre: propietario.nombre,
+          dpi: propietario.dpi,
+          telefono: propietario.telefono,
+          email: propietario.email
+        },
+        inmuebles: []
+      });
+    }
+
+    // IDs de inmuebles para traer geometrías
+    const ids = inmuebles.map(i => i.id);
+    const geo = await pool.query(`
+      SELECT
+        id,
+        ST_AsGeoJSON(coordenadas)::json AS coordenadas,
+        ST_AsGeoJSON(poligono)::json    AS poligono
+      FROM inmuebles
+      WHERE id = ANY($1)
+    `, [ids]);
+
+    // Mezclar geometrías y normalizar último pago
+    const inmueblesConGeo = inmuebles.map(i => {
+      const g = geo.rows.find(r => r.id === i.id);
+      const ultimoPago = (i.pagos && i.pagos.length > 0) ? i.pagos[0] : null;
+      return {
+        ...i,
+        ultimo_pago: ultimoPago ? {
+          id: ultimoPago.id,
+          monto: ultimoPago.monto,
+          fecha_pago: ultimoPago.fecha_pago,
+          metodo_pago: ultimoPago.metodo_pago,
+          num_recibo: ultimoPago.num_recibo
+        } : null,
+        coordenadas: g?.coordenadas || null,
+        poligono: g?.poligono || null,
+        tiene_certificado: i._count?.certificados > 0
+      };
+    });
+
+    res.json({
+      propietario: {
+        nombre: propietario.nombre,
+        dpi: propietario.dpi,
+        telefono: propietario.telefono,
+        email: propietario.email
+      },
+      inmuebles: inmueblesConGeo,
+      page: pageNum,
+      limit: limitNum
+    });
+  } catch (error) {
+    console.error('Error getInmueblesByDpi:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -335,3 +483,5 @@ export const eliminarInmueble = async (req, res) => {
     res.status(500).json({ error: error.message })
   }
 }
+
+

@@ -69,7 +69,7 @@ export default router
 
 /**
  * @swagger
- * /usuarios/{id}:
+ * /users/{id}:
  *   get:
  *     summary: Obtiene un usuario por ID
  *     tags: [Usuarios]
@@ -90,7 +90,7 @@ export default router
 
 /**
  * @swagger
- * /usuarios:
+ * /users:
  *   post:
  *     summary: Crea un nuevo usuario
  *     tags: [Usuarios]
@@ -127,7 +127,7 @@ export default router
 
 /**
  * @swagger
- * /usuarios/{id}:
+ * /users/{id}:
  *   put:
  *     summary: Actualiza un usuario
  *     tags: [Usuarios]
@@ -168,7 +168,7 @@ export default router
 
 /**
  * @swagger
- * /usuarios/{id}:
+ * /users/{id}:
  *   delete:
  *     summary: Elimina un usuario
  *     tags: [Usuarios]

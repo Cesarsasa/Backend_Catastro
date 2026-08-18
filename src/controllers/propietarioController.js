@@ -375,6 +375,21 @@ export const getPropietarioByDpi = async (req, res) => {
   }
 }
 
+//propietarios count
+
+export const getPropietarioCount = async (req, res) => {
+  try {
+    const total = await prisma.propietario.count({
+      where: { deleted_at: null }
+    });
+    res.json({ total });
+    console.log('Total de propietarios:', total);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
 // ─── POST crear ──────────────────────────────────────────
 export const crearPropietario = async (req, res) => {
   try {

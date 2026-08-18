@@ -87,12 +87,15 @@ model Usuario {
   rol        Rol      @default(consulta)
   activo     Boolean  @default(true)
   creado_en  DateTime @default(now())
+  propietario_id Int?       @unique  
 
+  //propietario    Propietario? @relation(fields: [propietario_id], references: [id])
   inmuebles_creados  Inmueble[]  @relation("CreadoPor")
   documentos_subidos Documento[] @relation("SubidoPor")
    documento_propietarios Documento_Propietario[] @relation("SubidoPor")
   pagos_registrados  Pago[]      @relation("RegistradoPor")
   auditorias         Auditoria[]
+  certificados Certificado[] @relation("SubidoPor")
 
   @@index([rol])
   @@map("usuarios")
@@ -130,6 +133,7 @@ model Propietario {
   inmuebles  Inmueble[]
   documentos Documento[]
   documento_propietarios Documento_Propietario[]
+  //usuario    Usuario?
 
   @@index([dpi])
   @@index([municipio_id])
@@ -184,6 +188,7 @@ model Inmueble {
   creador     Usuario?     @relation("CreadoPor", fields: [creado_por], references: [id])
   documentos  Documento[]
   pagos       Pago[]
+  certificados Certificado[]
 
   @@index([propietario_id])
   @@index([municipio_id])
@@ -230,6 +235,37 @@ model Documento {
   @@index([propietario_id])
   @@map("documentos")
 }
+
+enum EstadoCertificado {
+  bloqueado
+  activo
+  vencido
+}
+
+model Certificado {
+  id             Int              @id @default(autoincrement())
+  inmueble_id    Int?
+  nombre         String           @db.VarChar(255)
+  ruta_s3        String           @db.VarChar(500)
+  url            String
+  tamano_bytes   Int?
+  mime_type      String?          @db.VarChar(100)
+  subido_por     Int?
+  creado_en      DateTime         @default(now())
+
+  // 🔹 Nuevos campos
+  estado         EstadoCertificado @default(bloqueado)
+  vigencia_hasta DateTime?
+
+  inmueble    Inmueble?    @relation(fields: [inmueble_id], references: [id], onDelete: Cascade)
+  subidor     Usuario?     @relation("SubidoPor", fields: [subido_por], references: [id])
+  //pagos       Pago[]
+  
+  @@index([inmueble_id])
+  @@map("certificados")
+}
+
+
 model Documento_Propietario {
   id             Int            @id @default(autoincrement())
   propietario_id Int?
@@ -265,35 +301,37 @@ enum TipoDocumento {
   otro
 }
 
-model Pago {
-  id             Int        @id @default(autoincrement())
-  inmueble_id    Int
-  anio           Int
-  trimestre      Int?
-  monto          Decimal    @db.Decimal(12, 2)
-  estado         EstadoPago @default(pendiente)
-  fecha_pago     DateTime?
-  metodo_pago    String?    @db.VarChar(50)
-  num_recibo     String?    @unique @db.VarChar(100)
-  registrado_por Int?
-  creado_en      DateTime   @default(now())
+  model Pago {
+    id             Int        @id @default(autoincrement())
+    inmueble_id    Int
+   // certificado_id Int
+    anio           Int
+    trimestre      Int?
+    monto          Decimal    @db.Decimal(12, 2)
+    estado         EstadoPago @default(pendiente)
+    fecha_pago     DateTime?
+    metodo_pago    String?    @db.VarChar(50)
+    num_recibo     String?    @unique @db.VarChar(100)
+    registrado_por Int?
+    creado_en      DateTime   @default(now())
 
-  inmueble    Inmueble @relation(fields: [inmueble_id], references: [id])
-  registrador Usuario? @relation("RegistradoPor", fields: [registrado_por], references: [id])
+    inmueble    Inmueble @relation(fields: [inmueble_id], references: [id])
+    //certificado  Certificado @relation(fields: [certificado_id], references: [id])
+    registrador Usuario? @relation("RegistradoPor", fields: [registrado_por], references: [id])
 
-  @@index([inmueble_id])
-  @@index([estado])
-  @@index([anio, trimestre])
-  @@index([inmueble_id, anio])
-  @@map("pagos")
-}
+    @@index([inmueble_id])
+    @@index([estado])
+    @@index([anio, trimestre])
+    @@index([inmueble_id, anio])
+    @@map("pagos")
+  }
 
-enum EstadoPago {
-  pendiente
-  pagado
-  moroso
-  exonerado
-}
+  enum EstadoPago {
+    pendiente
+    pagado
+    moroso
+    exonerado
+  }
 
 model Auditoria {
   id            Int      @id @default(autoincrement())

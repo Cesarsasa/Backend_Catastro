@@ -5,7 +5,9 @@ import {
   getInmuebleByCodigo,
   crearInmueble,
   actualizarInmueble,
-  eliminarInmueble
+  eliminarInmueble,
+  getInmueblesCount,
+  getInmueblesByDpi
 } from '../controllers/inmuebleController.js'
 import { verificarToken, autorizar } from '../middleware/auth.js'
 
@@ -71,6 +73,87 @@ const router = Router()
  *         description: Token no proporcionado
  */
 router.get('/', verificarToken, getInmuebles)
+
+/**
+ * @swagger
+ * /inmuebles/dpi/{dpi}:
+ *   get:
+ *     summary: Lista los inmuebles de un propietario por DPI
+ *     tags: [Inmuebles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: dpi
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 1234567890101
+ *         description: DPI único del propietario
+ *     responses:
+ *       200:
+ *         description: Propietario con sus inmuebles asociados
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 propietario:
+ *                   type: object
+ *                   properties:
+ *                     nombre:
+ *                       type: string
+ *                     dpi:
+ *                       type: string
+ *                     telefono:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                 inmuebles:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       codigo_catastral:
+ *                         type: string
+ *                       direccion_completa:
+ *                         type: string
+ *                       municipio:
+ *                         type: object
+ *                         properties:
+ *                           nombre:
+ *                             type: string
+ *                       zona:
+ *                         type: object
+ *                         properties:
+ *                           numero:
+ *                             type: integer
+ *                           nombre:
+ *                             type: string
+ *                       via:
+ *                         type: object
+ *                         properties:
+ *                           tipo_via:
+ *                             type: object
+ *                             properties:
+ *                               nombre:
+ *                                 type: string
+ *                       coordenadas:
+ *                         type: object
+ *                       poligono:
+ *                         type: object
+ *                       tiene_certificado:
+ *                         type: boolean
+ *       404:
+ *         description: Propietario no encontrado
+ *       401:
+ *         description: Token no proporcionado
+ */
+router.get('/dpi/:dpi',  getInmueblesByDpi)
+
+router.get('/count', verificarToken, getInmueblesCount)
 
 /**
  * @swagger
@@ -246,5 +329,8 @@ router.put('/:id', verificarToken, autorizar('admin', 'editor'), actualizarInmue
  *         description: Inmueble no encontrado
  */
 router.delete('/:id', verificarToken, autorizar('admin'), eliminarInmueble)
+
+
+
 
 export default router

@@ -9,11 +9,14 @@ import documentoRoutes   from './documentoRoutes.js'
 import departamentoRoutes from './departamentoRoutes.js'
 import tipoViaRoutes      from './tipoViaRoutes.js'
 import userRoutes         from './usersRoutes.js'
+import certificadoRoutes    from './certificadoRoutes.js'
 import documentoPropietariosRoutes   from './documentoPropietariosRoutes.js'
-
+import certificadoautoRoutes from './certificadoautoRoutes.js'
+import stripeRoutes from './stripeRoutes.js'
+import polarRoutes from './polarRoutes.js'
 const router = Router()
 
-router.use('/auth',         authRoutes)       // ← nuevo
+router.use('/auth',         authRoutes)       
 router.use('/municipios',   municipioRoutes)
 router.use('/departamentos',   departamentoRoutes)
 router.use('/zonas',        zonaRoutes)
@@ -24,6 +27,11 @@ router.use('/tipos-via',    tipoViaRoutes)
 router.use('/documentos',   documentoRoutes)
 router.use('/users',   userRoutes)
 router.use('/documentos-propietarios', documentoPropietariosRoutes)
+router.use('/certificados', certificadoRoutes)
+router.use('/stripe', stripeRoutes);
+router.use('/polar', polarRoutes);
+router.use('/certificadoauto', certificadoautoRoutes);
+
 export default router
 
 /*
