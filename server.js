@@ -66,6 +66,7 @@ import routes from './src/routes/index.js';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './src/config/swagger.js';
 import { webhookStripe } from './src/controllers/stripeController.js';
+import { webhookPolar } from './src/controllers/polarController.js';
 
 dotenv.config();
 
@@ -79,6 +80,7 @@ app.use(morgan('dev'));
 
 // ⚠️ IMPORTANTE: el webhook debe ir ANTES de express.json()
 app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), webhookStripe);
+app.post('/api/polar/webhook', express.raw({ type: 'application/json' }), webhookPolar);
 
 // El resto de rutas sí usan JSON
 app.use(express.json());
