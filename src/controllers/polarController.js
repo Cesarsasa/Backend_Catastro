@@ -6,13 +6,22 @@ const polar = new Polar({
   accessToken: process.env.POLAR_API_KEY,
   server: "sandbox", // "sandbox" | "production" — nota: es "server", no "environment"
 });
+
 export const crearPagoPolar = async (req, res) => {
   try {
     const { inmueble_id, certificado_id, anio, trimestre, dpi } = req.body;
     const monto = 50;
 
     const successUrl = `${process.env.BASE_URL}/certificados/propietario/${dpi}?checkout_id={CHECKOUT_ID}`;
-    const cancelUrl  = `${process.env.BASE_URL}/certificados/propietario/${dpi}`;
+
+    // Construimos metadata solo con los campos que sí tienen valor.
+    // Polar rechaza valores "" o "undefined" (mínimo 1 carácter real).
+    const metadata = {};
+    if (inmueble_id != null && inmueble_id !== '') metadata.inmueble_id = String(inmueble_id);
+    if (certificado_id != null && certificado_id !== '') metadata.certificado_id = String(certificado_id);
+    if (anio != null && anio !== '') metadata.anio = String(anio);
+    if (trimestre != null && trimestre !== '') metadata.trimestre = String(trimestre);
+    if (dpi != null && dpi !== '') metadata.dpi = String(dpi);
 
     const checkout = await polar.checkouts.create({
       products: [process.env.POLAR_PRODUCT_ID],
@@ -26,23 +35,14 @@ export const crearPagoPolar = async (req, res) => {
         ],
       },
       successUrl,
-      metadata: {
-        inmueble_id: inmueble_id != null ? String(inmueble_id) : '',
-        certificado_id: certificado_id != null ? String(certificado_id) : '',
-        anio: anio != null ? String(anio) : '',
-        trimestre: trimestre != null ? String(trimestre) : '',
-        dpi: dpi != null ? String(dpi) : '',
-      },
+      metadata,
     });
 
     res.json({ url: checkout.url });
   } catch (error) {
-    // 👇 Esto te va a dar la causa real
     console.error('❌ Error creando sesión Polar:');
     console.error('Mensaje:', error.message);
-    console.error('Status:', error.status ?? error.statusCode);
     console.error('Body:', JSON.stringify(error.body ?? error.response?.data ?? error, null, 2));
-
     res.status(500).json({ error: 'Error al crear sesión de pago' });
   }
 };
