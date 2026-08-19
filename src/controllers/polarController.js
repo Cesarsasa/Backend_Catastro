@@ -6,7 +6,6 @@ const polar = new Polar({
   accessToken: process.env.POLAR_API_KEY,
   server: "sandbox", // "sandbox" | "production" — nota: es "server", no "environment"
 });
-
 export const crearPagoPolar = async (req, res) => {
   try {
     const { inmueble_id, certificado_id, anio, trimestre, dpi } = req.body;
@@ -16,20 +15,17 @@ export const crearPagoPolar = async (req, res) => {
     const cancelUrl  = `${process.env.BASE_URL}/certificados/propietario/${dpi}`;
 
     const checkout = await polar.checkouts.create({
-      products: [process.env.POLAR_PRODUCT_ID], // producto creado en tu dashboard de Polar
+      products: [process.env.POLAR_PRODUCT_ID],
       prices: {
         [process.env.POLAR_PRODUCT_ID]: [
           {
             amountType: "fixed",
-            priceAmount: monto * 100, // centavos
+            priceAmount: monto * 100,
             priceCurrency: "gtq",
           },
         ],
       },
       successUrl,
-      // Importante: solo mandamos el valor si existe de verdad.
-      // Antes usábamos String(anio) sin importar si anio era undefined,
-      // lo que terminaba mandando el texto "undefined" como metadata.
       metadata: {
         inmueble_id: inmueble_id != null ? String(inmueble_id) : '',
         certificado_id: certificado_id != null ? String(certificado_id) : '',
@@ -41,11 +37,15 @@ export const crearPagoPolar = async (req, res) => {
 
     res.json({ url: checkout.url });
   } catch (error) {
-    console.error('❌ Error creando sesión Polar:', error.message);
+    // 👇 Esto te va a dar la causa real
+    console.error('❌ Error creando sesión Polar:');
+    console.error('Mensaje:', error.message);
+    console.error('Status:', error.status ?? error.statusCode);
+    console.error('Body:', JSON.stringify(error.body ?? error.response?.data ?? error, null, 2));
+
     res.status(500).json({ error: 'Error al crear sesión de pago' });
   }
 };
-
 export const webhookPolar = async (req, res) => {
   let event;
 
