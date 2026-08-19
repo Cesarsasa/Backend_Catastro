@@ -3,7 +3,7 @@ import { Polar } from "@polar-sh/sdk";
 
 const polar = new Polar({
   accessToken: process.env.POLAR_API_KEY,
-  server: "sandbox", // usa "production" cuando migres
+  server: "sandbox", // "sandbox" | "production" — nota: es "server", no "environment"
 });
 
 export const crearPagoPolar = async (req, res) => {
@@ -26,13 +26,12 @@ export const crearPagoPolar = async (req, res) => {
         ],
       },
       successUrl,
-      cancelUrl,
       metadata: {
-        inmueble_id: inmueble_id ? String(inmueble_id) : null,
-        certificado_id: certificado_id ? String(certificado_id) : null,
-        anio: anio ? String(anio) : String(new Date().getFullYear()),
-        trimestre: trimestre ? String(trimestre) : null,
-        dpi: dpi ? String(dpi) : null,
+        inmueble_id: String(inmueble_id),
+        certificado_id: String(certificado_id),
+        anio: String(anio),
+        trimestre: String(trimestre),
+        dpi: String(dpi),
       },
     });
 
@@ -42,7 +41,6 @@ export const crearPagoPolar = async (req, res) => {
     res.status(500).json({ error: 'Error al crear sesión de pago' });
   }
 };
-
 
 export const webhookPolar = async (req, res) => {
   let event;
