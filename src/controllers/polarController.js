@@ -46,6 +46,8 @@ export const crearPagoPolar = async (req, res) => {
     res.status(500).json({ error: 'Error al crear sesión de pago' });
   }
 };
+
+
 export const webhookPolar = async (req, res) => {
   let event;
 
@@ -69,7 +71,27 @@ export const webhookPolar = async (req, res) => {
     // Para pagos únicos (one-time), el evento relevante es order.paid
     if (event.type === 'order.paid') {
       const order = event.data;
+
+      // 🔎 TEMPORAL: para confirmar los nombres exactos de campo que
+      // expone el SDK (probablemente camelCase). Quita esto una vez
+      // confirmado.
+      console.log('📦 order recibido:', JSON.stringify(order, null, 2));
+
       const metadata = order.metadata ?? {};
+
+      // El SDK de Polar convierte los campos del webhook a camelCase,
+      // así que probamos varias variantes posibles del monto total.
+      const montoCentavos =
+        order.amount ??
+        order.totalAmount ??
+        order.total_amount ??
+        order.netAmount ??
+        order.net_amount;
+
+      if (montoCentavos == null) {
+        console.error('❌ No se pudo determinar el monto del pago. Order recibido:', JSON.stringify(order));
+        return res.status(202).send('');
+      }
 
       // parseInt sobre "undefined" (string) da NaN, así que validamos
       // con Number.isFinite antes de usar el valor.
@@ -87,11 +109,21 @@ export const webhookPolar = async (req, res) => {
         return res.status(202).send('');
       }
 
+      // Evita duplicados si Polar reintenta la entrega del mismo evento.
+      const pagoExistente = await prisma.pago.findFirst({
+        where: { num_recibo: order.id },
+      });
+
+      if (pagoExistente) {
+        console.log('ℹ️ Pago ya registrado previamente, ignorando duplicado:', order.id);
+        return res.status(202).send('');
+      }
+
       await prisma.pago.create({
         data: {
           anio,
           trimestre,
-          monto: order.amount / 100,
+          monto: montoCentavos / 100,
           estado: 'pagado',
           fecha_pago: new Date(),
           metodo_pago: 'polar',
