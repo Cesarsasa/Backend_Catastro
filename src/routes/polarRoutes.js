@@ -7,7 +7,7 @@ const router = Router();
 router.post('/crear-sesion', crearPagoPolar);
 
 // Webhook (Polar manda JSON directo, no requiere raw body en sandbox)
-router.post('/webhook', express.raw({ type: 'application/json' }), webhookPolar);
+//router.post('/webhook', express.raw({ type: 'application/json' }), webhookPolar);
 
 export default router;
 
