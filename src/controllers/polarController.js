@@ -6,7 +6,7 @@ const polar = new Polar({
   accessToken: process.env.POLAR_API_KEY,
   server: "sandbox", // "sandbox" | "production" — nota: es "server", no "environment"
 });
-/*
+
 export const crearPagoPolar = async (req, res) => {
   try {
     const { inmueble_id, certificado_id, anio, trimestre, dpi } = req.body;
@@ -25,47 +25,6 @@ const successUrl = `${process.env.BASE_URL}/confirmar-nit?recibo_id={CHECKOUT_ID
     if (dpi != null && dpi !== '') metadata.dpi = String(dpi);
 
     const checkout = await polar.checkouts.create({
-  products: [process.env.POLAR_PRODUCT_ID],
-  prices: {
-    [process.env.POLAR_PRODUCT_ID]: [
-      {
-        amountType: "fixed",
-        priceAmount: monto * 100,
-        priceCurrency: "gtq",
-      },
-    ],
-  },
-  successUrl,
-  metadata: {
-    ...metadata,
-    checkout_id: "{CHECKOUT_ID}", // 👈 guardamos el checkout.id en metadata
-  },
-});
-
-    res.json({ url: checkout.url });
-  } catch (error) {
-    console.error('❌ Error creando sesión Polar:');
-    console.error('Mensaje:', error.message);
-    console.error('Body:', JSON.stringify(error.body ?? error.response?.data ?? error, null, 2));
-    res.status(500).json({ error: 'Error al crear sesión de pago' });
-  }
-};*/
-export const crearPagoPolar = async (req, res) => {
-  try {
-    const { inmueble_id, certificado_id, anio, trimestre, dpi } = req.body;
-    const monto = 50;
-
-    const successUrl = `${process.env.BASE_URL}/confirmar-nit?recibo_id={CHECKOUT_ID}`;
-
-    const metadata = {};
-    if (inmueble_id) metadata.inmueble_id = String(inmueble_id);
-    if (certificado_id) metadata.certificado_id = String(certificado_id);
-    if (anio) metadata.anio = String(anio);
-    if (trimestre) metadata.trimestre = String(trimestre);
-    if (dpi) metadata.dpi = String(dpi);
-
-    // 1️⃣ Crear el checkout
-    const checkout = await polar.checkouts.create({
       products: [process.env.POLAR_PRODUCT_ID],
       prices: {
         [process.env.POLAR_PRODUCT_ID]: [
@@ -80,14 +39,11 @@ export const crearPagoPolar = async (req, res) => {
       metadata,
     });
 
-    // 2️⃣ Actualizar metadata con el checkout.id real
-    await polar.checkouts.update(checkout.id, {
-      metadata: { ...metadata, checkout_id: checkout.id },
-    });
-
     res.json({ url: checkout.url });
   } catch (error) {
-    console.error('❌ Error creando sesión Polar:', error.message);
+    console.error('❌ Error creando sesión Polar:');
+    console.error('Mensaje:', error.message);
+    console.error('Body:', JSON.stringify(error.body ?? error.response?.data ?? error, null, 2));
     res.status(500).json({ error: 'Error al crear sesión de pago' });
   }
 };
@@ -97,7 +53,7 @@ export const webhookPolar = async (req, res) => {
   let event;
 
   try {
-    // req.body debe ser un Buffer crudo (usa express.raw en la ruta del webhook)
+    // req.body debe ser un Buffer crudo (por eso el express.raw arriba)
     event = validateEvent(
       req.body,
       req.headers,
@@ -113,25 +69,33 @@ export const webhookPolar = async (req, res) => {
   }
 
   try {
+    // Para pagos únicos (one-time), el evento relevante es order.paid
     if (event.type === 'order.paid') {
       const order = event.data;
-      const metadata = order.metadata ?? {};
 
+      // 🔎 TEMPORAL: para confirmar los nombres exactos de campo que
+      // expone el SDK (probablemente camelCase). Quita esto una vez
+      // confirmado.
       console.log('📦 order recibido:', JSON.stringify(order, null, 2));
 
-      // Usamos el checkout_id que enviamos en metadata al crear el checkout
-      const numRecibo = metadata.checkout_id ?? order.id;
+      const metadata = order.metadata ?? {};
 
+      // El SDK de Polar convierte los campos del webhook a camelCase,
+      // así que probamos varias variantes posibles del monto total.
       const montoCentavos =
         order.amount ??
         order.totalAmount ??
-        order.netAmount;
+        order.total_amount ??
+        order.netAmount ??
+        order.net_amount;
 
       if (montoCentavos == null) {
-        console.error('❌ No se pudo determinar el monto del pago');
+        console.error('❌ No se pudo determinar el monto del pago. Order recibido:', JSON.stringify(order));
         return res.status(202).send('');
       }
 
+      // parseInt sobre "undefined" (string) da NaN, así que validamos
+      // con Number.isFinite antes de usar el valor.
       const anioParsed = parseInt(metadata.anio, 10);
       const anio = Number.isFinite(anioParsed) ? anioParsed : new Date().getFullYear();
 
@@ -141,39 +105,42 @@ export const webhookPolar = async (req, res) => {
       const inmuebleId = parseInt(metadata.inmueble_id, 10);
       if (!Number.isFinite(inmuebleId)) {
         console.error('❌ inmueble_id inválido o ausente en metadata:', metadata.inmueble_id);
+        // Respondemos 202 igual para que Polar no reintente indefinidamente
+        // un evento que nunca va a poder procesarse (metadata mal formado).
         return res.status(202).send('');
       }
 
-      // Evita duplicados si Polar reintenta el mismo evento
+      // Evita duplicados si Polar reintenta la entrega del mismo evento.
       const pagoExistente = await prisma.pago.findFirst({
-        where: { num_recibo: numRecibo },
+        where: { num_recibo: order.id },
       });
 
       if (pagoExistente) {
-        console.log('ℹ️ Pago ya registrado previamente, ignorando duplicado:', numRecibo);
+        console.log('ℹ️ Pago ya registrado previamente, ignorando duplicado:', order.id);
         return res.status(202).send('');
       }
 
-      // Inserta pago pendiente de NIT/CF
+      // Inserta pago pendiente de NIT
       await prisma.pago.create({
         data: {
           anio,
           trimestre,
           monto: montoCentavos / 100,
-          estado: 'pendiente_nit',   // asegúrate de tener este valor en tu enum EstadoPago
+          estado: 'pendiente',   // nuevo estado en tu enum
           fecha_pago: new Date(),
           metodo_pago: 'polar',
-          num_recibo: numRecibo,     // 👈 ahora coincide con el successUrl
-          nit: null,
+          num_recibo: order.id,
+          nit: null,                 // aún no lo tenemos
           inmueble: {
             connect: { id: inmuebleId },
           },
         },
-      });
+      })
 
       console.log('✅ Pago Polar confirmado y registrado');
     }
 
+    // Opcional: si quieres reaccionar también cuando el checkout cambia de estado
     if (event.type === 'checkout.updated') {
       const checkout = event.data;
       console.log('ℹ️ Checkout actualizado:', checkout.status);
@@ -185,7 +152,6 @@ export const webhookPolar = async (req, res) => {
     res.status(500).send(`Webhook Error: ${err.message}`);
   }
 };
-
 /*import prisma from '../config/prisma.config.ts';
 import { Polar } from "@polar-sh/sdk";
 
