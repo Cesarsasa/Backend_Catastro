@@ -329,6 +329,7 @@ enum TipoDocumento {
 
   enum EstadoPago {
     pendiente
+    pendiente_nit
     pagado
     moroso
     exonerado
