@@ -12,7 +12,8 @@ export const crearPagoPolar = async (req, res) => {
     const { inmueble_id, certificado_id, anio, trimestre, dpi } = req.body;
     const monto = 50;
 
-    const successUrl = `${process.env.BASE_URL}/certificados/propietario/${dpi}?checkout_id={CHECKOUT_ID}`;
+    //const successUrl = `${process.env.BASE_URL}/certificados/propietario/${dpi}?checkout_id={CHECKOUT_ID}`;
+const successUrl = `${process.env.BASE_URL}/confirmar-nit?recibo_id={CHECKOUT_ID}`;
 
     // Construimos metadata solo con los campos que sí tienen valor.
     // Polar rechaza valores "" o "undefined" (mínimo 1 carácter real).
@@ -119,20 +120,22 @@ export const webhookPolar = async (req, res) => {
         return res.status(202).send('');
       }
 
+      // Inserta pago pendiente de NIT
       await prisma.pago.create({
         data: {
           anio,
           trimestre,
           monto: montoCentavos / 100,
-          estado: 'pagado',
+          estado: 'pendiente_nit',   // nuevo estado en tu enum
           fecha_pago: new Date(),
           metodo_pago: 'polar',
           num_recibo: order.id,
+          nit: null,                 // aún no lo tenemos
           inmueble: {
             connect: { id: inmuebleId },
           },
         },
-      });
+      })
 
       console.log('✅ Pago Polar confirmado y registrado');
     }

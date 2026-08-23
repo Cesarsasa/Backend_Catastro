@@ -14,6 +14,7 @@ import documentoPropietariosRoutes   from './documentoPropietariosRoutes.js'
 import certificadoautoRoutes from './certificadoautoRoutes.js'
 import stripeRoutes from './stripeRoutes.js'
 import polarRoutes from './polarRoutes.js'
+import pagoRoutes from './pagoRoutes.js'
 const router = Router()
 
 router.use('/auth',         authRoutes)       
@@ -31,6 +32,7 @@ router.use('/certificados', certificadoRoutes)
 router.use('/stripe', stripeRoutes);
 router.use('/polar', polarRoutes);
 router.use('/certificadoauto', certificadoautoRoutes);
+router.use('/pagos', pagoRoutes);
 
 export default router
 

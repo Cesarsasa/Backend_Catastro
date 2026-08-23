@@ -312,6 +312,7 @@ enum TipoDocumento {
     fecha_pago     DateTime?
     metodo_pago    String?    @db.VarChar(50)
     num_recibo     String?    @unique @db.VarChar(100)
+    nit            String?    @db.VarChar(20)   // Nuevo campo
     registrado_por Int?
     creado_en      DateTime   @default(now())
 
