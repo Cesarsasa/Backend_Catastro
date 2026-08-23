@@ -129,7 +129,7 @@ export const webhookPolar = async (req, res) => {
           estado: 'pendiente',   // nuevo estado en tu enum
           fecha_pago: new Date(),
           metodo_pago: 'polar',
-          num_recibo: order.id,
+          num_recibo: order.checkoutId ?? order.checkout_id ?? order.id,
           nit: null,                 // aún no lo tenemos
           inmueble: {
             connect: { id: inmuebleId },
