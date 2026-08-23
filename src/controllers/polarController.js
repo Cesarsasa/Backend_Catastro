@@ -6,7 +6,7 @@ const polar = new Polar({
   accessToken: process.env.POLAR_API_KEY,
   server: "sandbox", // "sandbox" | "production" — nota: es "server", no "environment"
 });
-
+/*
 export const crearPagoPolar = async (req, res) => {
   try {
     const { inmueble_id, certificado_id, anio, trimestre, dpi } = req.body;
@@ -47,6 +47,47 @@ const successUrl = `${process.env.BASE_URL}/confirmar-nit?recibo_id={CHECKOUT_ID
     console.error('❌ Error creando sesión Polar:');
     console.error('Mensaje:', error.message);
     console.error('Body:', JSON.stringify(error.body ?? error.response?.data ?? error, null, 2));
+    res.status(500).json({ error: 'Error al crear sesión de pago' });
+  }
+};*/
+export const crearPagoPolar = async (req, res) => {
+  try {
+    const { inmueble_id, certificado_id, anio, trimestre, dpi } = req.body;
+    const monto = 50;
+
+    const successUrl = `${process.env.BASE_URL}/confirmar-nit?recibo_id={CHECKOUT_ID}`;
+
+    const metadata = {};
+    if (inmueble_id) metadata.inmueble_id = String(inmueble_id);
+    if (certificado_id) metadata.certificado_id = String(certificado_id);
+    if (anio) metadata.anio = String(anio);
+    if (trimestre) metadata.trimestre = String(trimestre);
+    if (dpi) metadata.dpi = String(dpi);
+
+    // 1️⃣ Crear el checkout
+    const checkout = await polar.checkouts.create({
+      products: [process.env.POLAR_PRODUCT_ID],
+      prices: {
+        [process.env.POLAR_PRODUCT_ID]: [
+          {
+            amountType: "fixed",
+            priceAmount: monto * 100,
+            priceCurrency: "gtq",
+          },
+        ],
+      },
+      successUrl,
+      metadata,
+    });
+
+    // 2️⃣ Actualizar metadata con el checkout.id real
+    await polar.checkouts.update(checkout.id, {
+      metadata: { ...metadata, checkout_id: checkout.id },
+    });
+
+    res.json({ url: checkout.url });
+  } catch (error) {
+    console.error('❌ Error creando sesión Polar:', error.message);
     res.status(500).json({ error: 'Error al crear sesión de pago' });
   }
 };
