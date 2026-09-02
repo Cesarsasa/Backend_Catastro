@@ -13,7 +13,8 @@ export const crearPagoPolar = async (req, res) => {
     const monto = 50;
 
     //const successUrl = `${process.env.BASE_URL}/certificados/propietario/${dpi}?checkout_id={CHECKOUT_ID}`;
-const successUrl = `${process.env.BASE_URL}/confirmar-nit?recibo_id={CHECKOUT_ID}`;
+//const successUrl = `${process.env.BASE_URL}/confirmar-nit?recibo_id={CHECKOUT_ID}`;
+const successUrl = `${process.env.BASE_URL}/confirmar-nit?recibo_id={CHECKOUT_ID}&dpi=${dpi}`;
 
     // Construimos metadata solo con los campos que sí tienen valor.
     // Polar rechaza valores "" o "undefined" (mínimo 1 carácter real).
